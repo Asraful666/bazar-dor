@@ -19,6 +19,7 @@ export default function AuthForm({ mode }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -51,6 +52,16 @@ export default function AuthForm({ mode }: Props) {
 
     if (password.length > 128) {
       showError("পাসওয়ার্ড সর্বোচ্চ ১২৮ অক্ষরের হতে পারে।");
+      return;
+    }
+
+    if (isSignup && !confirmPassword) {
+      showError("পাসওয়ার্ড নিশ্চিত করুন।");
+      return;
+    }
+
+    if (isSignup && password !== confirmPassword) {
+      showError("পাসওয়ার্ড ও নিশ্চিত পাসওয়ার্ড একই হতে হবে।");
       return;
     }
 
@@ -263,6 +274,33 @@ export default function AuthForm({ mode }: Props) {
                   </div>
                 </div>
 
+                {isSignup && (
+                  <div>
+                    <label
+                      htmlFor="confirmPassword"
+                      className="text-sm font-medium"
+                    >
+                      পাসওয়ার্ড নিশ্চিত করুন
+                    </label>
+
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
+                      disabled={busy}
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      className={inputStyle}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   disabled={busy}
@@ -333,7 +371,7 @@ export default function AuthForm({ mode }: Props) {
             </p>
           </>
         )}
-            </div>
+      </div>
 
       <div className="mt-6 text-center">
         <Link
