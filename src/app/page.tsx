@@ -1,10 +1,13 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import Hero from "@/components/Hero";
 import ProductSection from "@/components/ProductSection";
 import ProductSkeleton from "@/components/ProductSkeleton";
 import { getProducts } from "@/lib/api";
 
 async function HomeProducts() {
+  await connection();
+
   const products = await getProducts();
 
   const risers = products
@@ -40,8 +43,6 @@ async function HomeProducts() {
         id="সব-পণ্য"
         title="সব পণ্য"
         subtitle="প্রয়োজনীয় সব পণ্যের আজকের দাম ও পরিবর্তন এক নজরে।মোট ৩৩টি পণ্য দেখানো হচ্ছে।"
-
-        
         products={products}
       />
     </>
