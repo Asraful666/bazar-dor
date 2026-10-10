@@ -1,5 +1,11 @@
 ﻿import AuthForm from "@/components/AuthForm";
+import ProtectedRedirectNotice from "@/components/ProtectedRedirectNotice";
 
 export default function SignInPage() {
-  return <AuthForm mode="signin" />;
+  return (
+    <>
+      <ProtectedRedirectNotice />
+      <AuthForm mode="signin" />
+    </>
+  );
 }
