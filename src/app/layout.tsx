@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Hind_Siliguri } from "next/font/google";
 import AuthNavbar from "@/components/AuthNavbar";
 import Providers from "@/components/Providers";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 const banglaFont = Hind_Siliguri({
@@ -24,10 +25,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="bn">
-      <body className={`${banglaFont.variable} antialiased`}>
+      <body
+        className={`${banglaFont.variable} flex min-h-screen flex-col antialiased`}
+      >
         <Providers>
           <AuthNavbar />
-          {children}
+          <div className="flex-1">{children}</div>
+          <Footer />
         </Providers>
       </body>
     </html>

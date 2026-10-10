@@ -30,7 +30,7 @@ export default function ProductSection({
           <span
             aria-hidden="true"
             className={
-              symbol === "▲" ? "text-green-700" : "text-red-600"
+              symbol === "▲" ? "text-red-600" : "text-[#169c52]"
             }
           >
             {symbol}

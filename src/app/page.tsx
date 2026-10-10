@@ -39,7 +39,9 @@ async function HomeProducts() {
       <ProductSection
         id="সব-পণ্য"
         title="সব পণ্য"
-        subtitle="প্রয়োজনীয় সব পণ্যের আজকের দাম ও পরিবর্তন এক নজরে।"
+        subtitle="প্রয়োজনীয় সব পণ্যের আজকের দাম ও পরিবর্তন এক নজরে।মোট ৩৩টি পণ্য দেখানো হচ্ছে।"
+
+        
         products={products}
       />
     </>

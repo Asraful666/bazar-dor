@@ -39,7 +39,9 @@ export default function Navbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const formatter = new Intl.DateTimeFormat("bn-BD", {
@@ -50,11 +52,13 @@ export default function Navbar({
       year: "numeric",
     });
 
-    const updateDate = () => setDate(formatter.format(new Date()));
+    function updateDate() {
+      setDate(formatter.format(new Date()));
+    }
 
     updateDate();
-    const timer = window.setInterval(updateDate, 60_000);
 
+    const timer = window.setInterval(updateDate, 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -69,15 +73,29 @@ export default function Navbar({
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    }
+
+    function handleFocusOutside(event: FocusEvent) {
+      if (
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
     }
 
     document.addEventListener("pointerdown", handleOutsideClick);
     document.addEventListener("keydown", handleEscape);
+    document.addEventListener("focusin", handleFocusOutside);
 
     return () => {
       document.removeEventListener("pointerdown", handleOutsideClick);
       document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("focusin", handleFocusOutside);
     };
   }, []);
 
@@ -99,10 +117,14 @@ export default function Navbar({
 
   return (
     <>
-      {/* প্রথম সারি: Logo, বাংলা date ও authentication */}
+      {/* প্রথম Navbar: Logo, date ও user menu */}
       <header className="relative z-30 border-b border-[#e8eee9] bg-[#fafcfb]">
         <div className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+            className="flex min-w-0 items-center gap-3"
+          >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#008c40] sm:h-12 sm:w-12">
               <Image
                 src="/images/logo-icon.png"
@@ -127,47 +149,65 @@ export default function Navbar({
             <div
               role="status"
               aria-label="প্রোফাইল লোড হচ্ছে"
-              className="h-10 w-24 animate-pulse rounded-lg bg-[#e5eee8]"
+              className="h-10 w-24 animate-pulse rounded-lg bg-[#e4eee7]"
             />
           ) : user ? (
             <div ref={menuRef} className="relative">
               <button
+                ref={menuButtonRef}
                 type="button"
                 aria-expanded={menuOpen}
                 aria-controls="navbar-profile"
                 onClick={() => setMenuOpen((open) => !open)}
                 className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[#edf5ef]"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e2f2e7] font-bold text-[#008c40]">
-                  {user.name.trim().charAt(0) || "👤"}
-                </span>
+                {user.image ? (
+                  <span
+                    role="img"
+                    aria-label={`${user.name}-এর প্রোফাইল ছবি`}
+                    className="h-9 w-9 shrink-0 rounded-full bg-[#e2f2e7] bg-cover bg-center"
+                    style={{
+                      backgroundImage: `url(${JSON.stringify(user.image)})`,
+                    }}
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e2f2e7] font-bold text-[#008c40]">
+                    {user.name.trim().charAt(0) || "👤"}
+                  </span>
+                )}
 
                 <span className="max-w-24 truncate text-sm sm:max-w-40">
                   {user.name}
                 </span>
 
-                <span aria-hidden="true" className="text-xs text-gray-500">
-                  ▾
+                <span
+                  aria-hidden="true"
+                  className="ml-1 text-xs text-[#64756b]"
+                >
+                  {menuOpen ? "▴" : "▾"}
                 </span>
               </button>
 
               {menuOpen && (
                 <div
                   id="navbar-profile"
-                  className="absolute top-full right-0 mt-2 w-64 rounded-2xl border border-[#dfe9e2] bg-white shadow-lg"
+                  className="absolute top-full right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-[#dfe9e2] bg-[#fafcfb] shadow-sm"
                 >
-                  <div className="border-b border-[#e8eee9] p-4">
-                    <p className="truncate font-semibold">{user.name}</p>
-                    <p className="mt-1 truncate text-sm text-[#64756b]">
+                  <div className="border-b border-[#e8eee9] px-5 py-4">
+                    <p className="truncate text-sm font-medium">
+                      {user.name}
+                    </p>
+
+                    <p className="mt-1 truncate text-xs text-[#64756b]">
                       {user.email}
                     </p>
                   </div>
 
-                  <div className="p-2">
+                  <div className="py-2">
                     <Link
                       href="/profile"
                       onClick={() => setMenuOpen(false)}
-                      className="block rounded-lg px-3 py-2 text-sm hover:bg-[#edf5ef]"
+                      className="block px-5 py-2.5 text-sm hover:bg-[#edf5ef]"
                     >
                       👤 আমার প্রোফাইল
                     </Link>
@@ -176,13 +216,18 @@ export default function Navbar({
                       type="button"
                       disabled={signingOut || !onSignOut}
                       onClick={handleSignOut}
-                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      className="block w-full px-5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
-                      {signingOut ? "সাইন আউট হচ্ছে..." : "↪ সাইন আউট"}
+                      {signingOut
+                        ? "সাইন আউট হচ্ছে..."
+                        : "↪ সাইন আউট"}
                     </button>
 
                     {logoutError && (
-                      <p role="alert" className="px-3 py-2 text-xs text-red-600">
+                      <p
+                        role="alert"
+                        className="px-5 py-2 text-xs text-red-600"
+                      >
                         {logoutError}
                       </p>
                     )}
@@ -210,7 +255,7 @@ export default function Navbar({
         </div>
       </header>
 
-      {/* দ্বিতীয় সারি: Category navigation */}
+      {/* দ্বিতীয় Navbar: Category links */}
       <nav
         aria-label="পণ্যের বিভাগ"
         className="border-b border-[#dfe9e2] bg-[#fafcfb]"
@@ -225,11 +270,12 @@ export default function Navbar({
                 <Link
                   key={category.slug}
                   href={href}
+                  onClick={() => setMenuOpen(false)}
                   aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     active
                       ? "bg-[#008c40] text-white"
-                      : "text-[#182b24] hover:bg-[#e5f2e9]"
+                      : "hover:bg-[#e5f2e9]"
                   }`}
                 >
                   <span aria-hidden="true">{category.icon}</span>
@@ -241,7 +287,6 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* Navbar-এর নিচে full-width price ticker */}
       <PriceTicker />
     </>
   );

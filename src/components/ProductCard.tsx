@@ -18,9 +18,9 @@ export default function ProductCard({
 
   const badgeColor =
     direction === "up"
-      ? "bg-green-50 text-green-700"
+      ? "bg-[#f0f6f2] text-red-600"
       : direction === "down"
-        ? "bg-red-50 text-red-600"
+        ? "bg-[#f0f6f2] text-[#169c52]"
         : "bg-gray-100 text-gray-500";
 
   const changeLabel =
