@@ -14,6 +14,8 @@ export default function AuthForm({ mode }: Props) {
   const router = useRouter();
   const isSignup = mode === "signup";
 
+  const { data: session, isPending } = authClient.useSession();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,7 +78,9 @@ export default function AuthForm({ mode }: Props) {
         });
 
         if (result.error) {
-          showError(result.error.message || "ইমেইল বা পাসওয়ার্ড সঠিক নয়।");
+          showError(
+            result.error.message || "ইমেইল বা পাসওয়ার্ড সঠিক নয়।"
+          );
           return;
         }
 
@@ -92,23 +96,38 @@ export default function AuthForm({ mode }: Props) {
   }
 
   async function handleSocialLogin(provider: "google" | "github") {
-    if (busy) return;
+    if (busy || isPending) return;
 
     setBusy(true);
     setErrorMessage("");
 
     try {
-      const result = await authClient.signIn.social({
-        provider,
-        callbackURL: "/",
-        errorCallbackURL: "/signin?error=oauth",
-      });
+      if (session) {
+        const result = await authClient.linkSocial({
+          provider,
+          callbackURL: "/",
+        });
 
-      if (result.error) {
-        showError(result.error.message || "Social login শুরু করা যায়নি।");
+        if (result.error) {
+          showError(
+            result.error.message || "অ্যাকাউন্ট যুক্ত করা যায়নি।"
+          );
+        }
+      } else {
+        const result = await authClient.signIn.social({
+          provider,
+          callbackURL: "/",
+          errorCallbackURL: "/signin?error=oauth",
+        });
+
+        if (result.error) {
+          showError(
+            result.error.message || "Social login শুরু করা যায়নি।"
+          );
+        }
       }
     } catch {
-      showError("Social login শুরু করা যায়নি।");
+      showError("Social login সম্পন্ন করা যায়নি।");
     } finally {
       setBusy(false);
     }
@@ -121,137 +140,209 @@ export default function AuthForm({ mode }: Props) {
     <main className="mx-auto max-w-md px-4 py-12 sm:py-16">
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold">
-          {isSignup ? "অ্যাকাউন্ট তৈরি করুন" : "সাইন ইন"}
+          {session
+            ? "অ্যাকাউন্ট সংযুক্ত করুন"
+            : isSignup
+              ? "অ্যাকাউন্ট তৈরি করুন"
+              : "সাইন ইন"}
         </h1>
 
         <p className="mt-2 text-sm text-[#64756b]">
-          {isSignup
-            ? "বাজার দর ব্যবহার করতে নতুন অ্যাকাউন্ট খুলুন।"
-            : "আপনার অ্যাকাউন্টে প্রবেশ করুন।"}
+          {session
+            ? "আপনার অ্যাকাউন্টের সঙ্গে Google বা GitHub যুক্ত করুন।"
+            : isSignup
+              ? "বাজার দর ব্যবহার করতে নতুন অ্যাকাউন্ট খুলুন।"
+              : "আপনার অ্যাকাউন্টে প্রবেশ করুন।"}
         </p>
       </div>
 
       <div className="rounded-2xl border border-[#dfe9e2] bg-[#fafcfb] p-6">
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {isSignup && (
-            <div>
-              <label htmlFor="name" className="text-sm font-medium">
-                নাম
-              </label>
-              <input
-                id="name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={busy}
-                required
-                className={inputStyle}
-              />
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="email" className="text-sm font-medium">
-              ইমেইল
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={busy}
-              required
-              className={inputStyle}
-            />
+        {isPending ? (
+          <div role="status" className="animate-pulse space-y-4">
+            <div className="h-10 rounded-lg bg-[#e4eee7]" />
+            <div className="h-10 rounded-lg bg-[#e4eee7]" />
+            <div className="h-10 rounded-lg bg-[#e4eee7]" />
+            <span className="sr-only">লোড হচ্ছে...</span>
           </div>
+        ) : (
+          <>
+            {session ? (
+              <div className="mb-5 rounded-xl bg-[#edf5ef] p-4">
+                <p className="font-semibold">{session.user.name}</p>
+                <p className="mt-1 break-all text-sm text-[#64756b]">
+                  {session.user.email}
+                </p>
+              </div>
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                noValidate
+                className="space-y-4"
+              >
+                {isSignup && (
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="text-sm font-medium"
+                    >
+                      নাম
+                    </label>
 
-          <div>
-            <label htmlFor="password" className="text-sm font-medium">
-              পাসওয়ার্ড
-            </label>
+                    <input
+                      id="name"
+                      type="text"
+                      autoComplete="name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      disabled={busy}
+                      required
+                      className={inputStyle}
+                    />
+                  </div>
+                )}
 
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete={isSignup ? "new-password" : "current-password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-medium"
+                  >
+                    ইমেইল
+                  </label>
+
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    disabled={busy}
+                    required
+                    className={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium"
+                  >
+                    পাসওয়ার্ড
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete={
+                        isSignup ? "new-password" : "current-password"
+                      }
+                      value={password}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
+                      disabled={busy}
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      className={`${inputStyle} pr-16`}
+                    />
+
+                    <button
+                      type="button"
+                      aria-label={
+                        showPassword
+                          ? "পাসওয়ার্ড লুকান"
+                          : "পাসওয়ার্ড দেখান"
+                      }
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="absolute top-1/2 right-3 mt-1 -translate-y-1/2 text-xs text-[#008c40]"
+                    >
+                      {showPassword ? "লুকান" : "দেখান"}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-lg bg-[#008c40] px-4 py-3 font-semibold text-white hover:bg-[#007535] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {busy
+                    ? "অপেক্ষা করুন..."
+                    : isSignup
+                      ? "সাইন আপ"
+                      : "সাইন ইন"}
+                </button>
+              </form>
+            )}
+
+            {errorMessage && (
+              <p role="alert" className="mt-4 text-sm text-red-600">
+                {errorMessage}
+              </p>
+            )}
+
+            {!session && (
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-[#dfe9e2]" />
+                <span className="text-xs text-[#64756b]">অথবা</span>
+                <div className="h-px flex-1 bg-[#dfe9e2]" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
                 disabled={busy}
-                required
-                minLength={8}
-                maxLength={128}
-                className={`${inputStyle} pr-16`}
-              />
+                onClick={() => handleSocialLogin("google")}
+                className="rounded-lg border border-[#dfe9e2] bg-white px-3 py-2.5 text-sm hover:bg-green-50 disabled:opacity-60"
+              >
+                {session ? "Google যুক্ত করুন" : "Google দিয়ে লগইন"}
+              </button>
 
               <button
                 type="button"
-                aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখান"}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((value) => !value)}
-                className="absolute top-1/2 right-3 mt-1 -translate-y-1/2 text-xs text-[#008c40]"
+                disabled={busy}
+                onClick={() => handleSocialLogin("github")}
+                className="rounded-lg border border-[#dfe9e2] bg-white px-3 py-2.5 text-sm hover:bg-green-50 disabled:opacity-60"
               >
-                {showPassword ? "লুকান" : "দেখান"}
+                {session ? "GitHub যুক্ত করুন" : "GitHub দিয়ে লগইন"}
               </button>
             </div>
-          </div>
 
-          {errorMessage && (
-            <p role="alert" className="text-sm text-red-600">
-              {errorMessage}
+            <p className="mt-6 text-center text-sm text-[#64756b]">
+              {session ? (
+                <Link
+                  href="/"
+                  className="font-semibold text-[#008c40] hover:underline"
+                >
+                  হোম পেজে ফিরে যান
+                </Link>
+              ) : (
+                <>
+                  {isSignup ? "আগেই অ্যাকাউন্ট আছে? " : "অ্যাকাউন্ট নেই? "}
+                  <Link
+                    href={isSignup ? "/signin" : "/signup"}
+                    className="font-semibold text-[#008c40] hover:underline"
+                  >
+                    {isSignup ? "সাইন ইন করুন" : "সাইন আপ করুন"}
+                  </Link>
+                </>
+              )}
             </p>
-          )}
+          </>
+        )}
+            </div>
 
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-[#008c40] px-4 py-3 font-semibold text-white hover:bg-[#007535] disabled:cursor-wait disabled:opacity-60"
-          >
-            {busy
-              ? "অপেক্ষা করুন..."
-              : isSignup
-                ? "সাইন আপ"
-                : "সাইন ইন"}
-          </button>
-        </form>
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-[#dfe9e2]" />
-          <span className="text-xs text-[#64756b]">অথবা</span>
-          <div className="h-px flex-1 bg-[#dfe9e2]" />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => handleSocialLogin("google")}
-            className="rounded-lg border border-[#dfe9e2] bg-white px-3 py-2.5 text-sm hover:bg-green-50 disabled:opacity-60"
-          >
-            Google দিয়ে লগইন
-          </button>
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => handleSocialLogin("github")}
-            className="rounded-lg border border-[#dfe9e2] bg-white px-3 py-2.5 text-sm hover:bg-green-50 disabled:opacity-60"
-          >
-            GitHub দিয়ে লগইন
-          </button>
-        </div>
-
-        <p className="mt-6 text-center text-sm text-[#64756b]">
-          {isSignup ? "আগেই অ্যাকাউন্ট আছে? " : "অ্যাকাউন্ট নেই? "}
-          <Link
-            href={isSignup ? "/signin" : "/signup"}
-            className="font-semibold text-[#008c40] hover:underline"
-          >
-            {isSignup ? "সাইন ইন করুন" : "সাইন আপ করুন"}
-          </Link>
-        </p>
+      <div className="mt-6 text-center">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[#64756b] transition-colors hover:text-[#008c40]"
+        >
+          <span aria-hidden="true">←</span>
+          হোম পেজে ফিরে যান
+        </Link>
       </div>
     </main>
   );
