@@ -2,22 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-type Product = {
+type TickerProduct = {
   id: number;
   nameBn: string;
   image: string;
-  today: number;
   unit: string;
+  today: number;
   change: {
     dir: "up" | "down" | "flat";
     pct: number;
   };
 };
-
-const endpoints = [
-  "https://api.api-store.workers.dev/api/bazardor/products",
-  "https://api.abcz.workers.dev/api/bazardor/products",
-];
 
 const units: Record<string, string> = {
   kg: "কেজি",
@@ -29,14 +24,19 @@ const units: Record<string, string> = {
   pcs: "পিস",
 };
 
-const formatter = new Intl.NumberFormat("bn-BD", {
+const numberFormat = new Intl.NumberFormat("bn-BD", {
+  maximumFractionDigits: 2,
+});
+
+const percentFormat = new Intl.NumberFormat("bn-BD", {
+  minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
 
-function isProduct(value: unknown): value is Product {
+function isTickerProduct(value: unknown): value is TickerProduct {
   if (typeof value !== "object" || value === null) return false;
 
-  const product = value as Partial<Product>;
+  const product = value as Partial<TickerProduct>;
 
   return (
     typeof product.id === "number" &&
@@ -45,8 +45,7 @@ function isProduct(value: unknown): value is Product {
     typeof product.unit === "string" &&
     typeof product.today === "number" &&
     Number.isFinite(product.today) &&
-    typeof product.change === "object" &&
-    product.change !== null &&
+    !!product.change &&
     ["up", "down", "flat"].includes(product.change.dir) &&
     typeof product.change.pct === "number" &&
     Number.isFinite(product.change.pct)
@@ -54,89 +53,91 @@ function isProduct(value: unknown): value is Product {
 }
 
 export default function PriceTicker() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<TickerProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
     const controller = new AbortController();
 
-    async function load() {
-      for (const endpoint of endpoints) {
-        try {
-          const response = await fetch(endpoint, {
-            signal: controller.signal,
-          });
+    async function loadProducts() {
+      try {
+        const response = await fetch("/api/products", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
 
-          if (!response.ok) throw new Error("API request failed");
-
-          const data: unknown = await response.json();
-
-          if (!Array.isArray(data)) {
-            throw new Error("Invalid API response");
-          }
-
-          const validProducts = data.filter(isProduct);
-
-          if (validProducts.length === 0) {
-            throw new Error("No valid products");
-          }
-
-          if (!cancelled) {
-            setProducts(validProducts);
-            setLoading(false);
-          }
-
-          return;
-        } catch {
-          if (cancelled) return;
+        if (!response.ok) {
+          throw new Error("পণ্যের দাম লোড করা যায়নি।");
         }
-      }
 
-      if (!cancelled) {
-        setFailed(true);
-        setLoading(false);
+        const data: unknown = await response.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("পণ্যের তথ্য সঠিক নয়।");
+        }
+
+        const validProducts = data.filter(isTickerProduct);
+
+        if (validProducts.length === 0) {
+          throw new Error("পণ্যের দাম পাওয়া যায়নি।");
+        }
+
+        if (!controller.signal.aborted) {
+          setProducts(validProducts);
+          setError("");
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setError("পণ্যের দাম লোড করা যায়নি।");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
-    void load();
+    void loadProducts();
 
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
+    return () => controller.abort();
   }, []);
 
   if (loading) {
     return (
       <div
         role="status"
-        className="border-b border-[#dfe9e2] bg-[#fafcfb] px-4 py-3"
+        className="overflow-hidden border-b border-[#dfe9e2] bg-[#fafcfb] px-4 py-3"
       >
-        <div className="h-4 animate-pulse rounded bg-[#e4eee7]" />
-        <span className="sr-only">বাজারদর লোড হচ্ছে...</span>
+        <div className="mx-auto flex max-w-6xl animate-pulse gap-6">
+          {[0, 1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="h-4 w-56 shrink-0 rounded bg-[#e4eee7]"
+            />
+          ))}
+        </div>
+
+        <span className="sr-only">বাজারের দাম লোড হচ্ছে...</span>
       </div>
     );
   }
 
-  if (failed) {
+  if (error) {
     return (
-      <p
+      <div
         role="status"
-        className="border-b border-[#dfe9e2] bg-[#fafcfb] px-4 py-3 text-center text-sm text-[#64756b]"
+        className="border-b border-[#dfe9e2] bg-[#fafcfb] px-4 py-3 text-center text-xs text-[#64756b]"
       >
-        বাজারদর লোড করা যাচ্ছে না। পরে আবার চেষ্টা করুন।
-      </p>
+        {error}
+      </div>
     );
   }
 
   return (
-    <div
-      role="region"
+    <section
       aria-label="আজকের বাজারদর"
-      tabIndex={0}
-      className="price-ticker overflow-hidden border-b border-[#dfe9e2] bg-[#fafcfb]"
+      className="price-ticker border-b border-[#dfe9e2] bg-[#fafcfb]"
     >
       <div className="ticker-track flex w-max">
         {[0, 1].map((copy) => (
@@ -146,40 +147,48 @@ export default function PriceTicker() {
             className="flex shrink-0 items-center"
           >
             {products.map((product) => {
-              const { dir, pct } = product.change;
+              const direction = product.change.dir;
+
+              const changeColor =
+                direction === "up"
+                  ? "text-[#dc3545]"
+                  : direction === "down"
+                    ? "text-[#169c52]"
+                    : "text-[#64756b]";
 
               const symbol =
-                dir === "up" ? "▲" : dir === "down" ? "▼" : "—";
-
-              const color =
-                dir === "up"
-                  ? "text-red-600"
-                  : dir === "down"
-                    ? "text-[#169c52]"
-                    : "text-gray-500";
+                direction === "up"
+                  ? "▲"
+                  : direction === "down"
+                    ? "▼"
+                    : "—";
 
               return (
-                <span
-                  key={product.id}
-                  className="flex shrink-0 items-center gap-2 whitespace-nowrap border-r border-[#dfe9e2] px-5 py-3 text-sm"
+                <div
+                  key={`${copy}-${product.id}`}
+                  className="flex shrink-0 items-center gap-2 whitespace-nowrap border-r border-[#e5eee8] px-5 py-3 text-xs sm:text-sm"
                 >
                   <span aria-hidden="true">{product.image}</span>
-                  <span>{product.nameBn}</span>
 
-                  <span>
-                    {formatter.format(product.today)} টাকা/
+                  <span className="font-medium text-[#182b24]">
+                    {product.nameBn}
+                  </span>
+
+                  <span className="text-[#182b24]">
+                    {numberFormat.format(product.today)} টাকা/
                     {units[product.unit] || product.unit}
                   </span>
 
-                  <span className={`font-semibold ${color}`}>
-                    {symbol} {formatter.format(Math.abs(pct))}%
+                  <span className={`font-semibold ${changeColor}`}>
+                    {symbol}{" "}
+                    {percentFormat.format(Math.abs(product.change.pct))}%
                   </span>
-                </span>
+                </div>
               );
             })}
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
