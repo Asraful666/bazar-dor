@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hind_Siliguri } from "next/font/google";
+import { Suspense } from "react";
 import AuthNavbar from "@/components/AuthNavbar";
 import Providers from "@/components/Providers";
 import Footer from "@/components/Footer";
@@ -29,8 +30,33 @@ export default function RootLayout({
         className={`${banglaFont.variable} flex min-h-screen flex-col antialiased`}
       >
         <Providers>
-          <AuthNavbar />
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                aria-label="ন্যাভবার লোড হচ্ছে"
+                className="border-b border-[#e5eee8] bg-[#fafcfb]"
+              >
+                <div className="mx-auto flex max-w-6xl animate-pulse items-center justify-between px-4 py-4 sm:px-6">
+                  <div className="h-11 w-36 rounded-lg bg-[#e4eee7]" />
+                  <div className="h-10 w-28 rounded-lg bg-[#e4eee7]" />
+                </div>
+
+                <div className="mx-auto h-14 max-w-6xl animate-pulse px-4 py-3 sm:px-6">
+                  <div className="h-8 rounded-lg bg-[#e4eee7]" />
+                </div>
+
+                <div className="h-10 animate-pulse bg-[#edf5ef]" />
+
+                <span className="sr-only">লোড হচ্ছে...</span>
+              </div>
+            }
+          >
+            <AuthNavbar />
+          </Suspense>
+
           <div className="flex-1">{children}</div>
+
           <Footer />
         </Providers>
       </body>
